@@ -1,0 +1,20 @@
+export const MATERIALS_LIST = [
+  { id: 1, name: "MCB satu pole 10A", unit: "Buah", qty: 1 },
+  { id: 2, name: "Box", unit: "Buah", qty: 1 },
+  { id: 3, name: "Kabel Sirkut Utama NYM 3 x 4 mm2", unit: "Meter", qty: 1 },
+  { id: 4, name: "Kabel Kotak Kontak NYM 3 x 2,5 mm2", unit: "Meter", qty: 7 },
+  { id: 5, name: "Kabel Sakelar Tunggal NYM 2 x 1,5 mm2", unit: "Meter", qty: 3 },
+  { id: 6, name: "Kabel Sakelar Ganda NYM 3 x 1,5 mm2", unit: "Meter", qty: 3 },
+  { id: 7, name: "Kabel Lampu NYM 2 x 1,5 mm2", unit: "Meter", qty: 10 },
+  { id: 8, name: "Kotak Kontak 16 A Outbow", unit: "Buah", qty: 1 },
+  { id: 9, name: "Lampu LED Putih 10 Watt", unit: "Buah", qty: 3 },
+  { id: 10, name: "Saklar Tunggal Outbow", unit: "Buah", qty: 1 },
+  { id: 11, name: "Saklar Ganda Outbow", unit: "Buah", qty: 1 },
+  { id: 12, name: "Fitting Plafon", unit: "Buah", qty: 3 },
+  { id: 13, name: "Earthing Konduktor Tembaga penampang 4 mm2", unit: "Set", qty: 1 },
+  { id: 14, name: "Earthing Rod Pembesian penampang 6 mm2 Min 1m", unit: "Meter", qty: 1 },
+  { id: 15, name: "Material Bantu (tDos, Roset, Klem, Paku, Isolasi)", unit: "Lot", qty: 1 },
+  { id: 16, name: "Pipa 5/8 Inch", unit: "Meter", qty: 1.5 },
+  { id: 17, name: "Sticker BPBL", unit: "Lot", qty: 1 },
+  { id: 18, name: "SLO", unit: "Buah", qty: 1 }
+];
