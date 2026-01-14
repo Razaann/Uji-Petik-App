@@ -13,6 +13,7 @@ export default function FormScreen({ navigation }) {
   
   // Basic Info State
   const [namaPelanggan, setNamaPelanggan] = useState('');
+  const [idPelanggan, setIdPelanggan] = useState(''); // New State
   const [nik, setNik] = useState('');
   const [alamat, setAlamat] = useState('');
   const [image, setImage] = useState(null); // State for the image
@@ -67,34 +68,36 @@ export default function FormScreen({ navigation }) {
 
   // --- Submit Logic ---
   const handleSubmit = async () => {
-    if (!namaPelanggan || !nik || !alamat) {
+    if (!namaPelanggan || !nik || !idPelanggan || !alamat) {
       Alert.alert("Error", "Please fill all customer data");
       return;
     }
 
     setLoading(true);
 
+    // LOGIC: Check if any item is "Tidak Ada"
+    const finalItems = Object.values(itemsStatus);
+    const hasIssue = finalItems.some(item => item.status === 'Tidak Ada');
+    const autoStatus = hasIssue ? 'RED' : 'GREEN';
+
     try {
-      // 1. Upload Image First (Step 1.7b in flowchart)
       const photoUrl = await uploadImage();
 
-      // 2. Insert Data to Table (Step 2.2 in flowchart)
-      const finalItems = Object.values(itemsStatus);
       const { error } = await supabase
         .from('inspections')
         .insert([{ 
           nama_pelanggan: namaPelanggan, 
+          id_pelanggan: idPelanggan,
           nik: nik,
           alamat: alamat,
           items: finalItems,
-          photo_url: photoUrl // Save the link to the image
+          photo_url: photoUrl,
+          validation_status: autoStatus // Save the Auto-Color
         }]);
 
       if (error) throw error;
-
-      Alert.alert("Success", "Full report with photo saved!", [
-        { text: "OK", onPress: () => navigation.goBack() }
-      ]);
+      Alert.alert("Success", `Report saved as ${autoStatus}!`);
+      navigation.goBack();
     } catch (err) {
       Alert.alert("Failed", err.message);
     } finally {
@@ -109,9 +112,33 @@ export default function FormScreen({ navigation }) {
       {/* Section 1: Metadata */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Data Pelanggan</Text>
-        <TextInput style={styles.input} placeholder="Nama Pelanggan" value={namaPelanggan} onChangeText={setNamaPelanggan} />
-        <TextInput style={styles.input} placeholder="NIK" keyboardType="numeric" value={nik} onChangeText={setNik} />
-        <TextInput style={[styles.input, { height: 80 }]} placeholder="Alamat Lengkap" multiline value={alamat} onChangeText={setAlamat} />
+        <TextInput 
+          style={styles.input} 
+          placeholder="Nama Pelanggan" 
+          value={namaPelanggan} 
+          onChangeText={setNamaPelanggan} 
+        />
+        <TextInput 
+          style={styles.input} 
+          placeholder="ID Pelanggan (12 Digit)" 
+          keyboardType="numeric" 
+          value={idPelanggan} 
+          onChangeText={setIdPelanggan} 
+        />
+        <TextInput 
+          style={styles.input} 
+          placeholder="NIK" 
+          keyboardType="numeric" 
+          value={nik} 
+          onChangeText={setNik} 
+        />
+        <TextInput 
+          style={[styles.input, { height: 80 }]} 
+          placeholder="Alamat Lengkap" 
+          multiline 
+          value={alamat} 
+          onChangeText={setAlamat} 
+        />
       </View>
 
       {/* Section 2: Checklist */}
