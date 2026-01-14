@@ -1,72 +1,12 @@
-// import React, { useState } from 'react';
-// import { StyleSheet, Text, View, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
-// import { supabase } from '../lib/supabase'; // Ensure this path matches your folder structure
-
-// export default function FormScreen({ navigation }) {
-//   const [loading, setLoading] = useState(false);
-
-//   const handleTestUpload = async () => {
-//     setLoading(true);
-//     console.log("Attempting to connect to Supabase...");
-
-//     try {
-//       const { data, error, status } = await supabase
-//         .from('inspections')
-//         .insert([
-//           { 
-//             nama_pelanggan: 'Testing Connection', 
-//             nik: '999999999' 
-//           }
-//         ])
-//         .select(); // .select() is needed to get the data back in the response
-
-//       if (error) throw error;
-
-//       console.log('Response Status:', status);
-//       Alert.alert('Connection Successful!', 'Data appeared in Supabase Table Editor.');
-      
-//     } catch (err) {
-//       console.error('Full Error Object:', err);
-//       Alert.alert('Connection Failed', err.message || 'Check your internet or API keys.');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   return (
-//     <View style={styles.container}>
-//       <Text style={styles.header}>Supabase Connection Test</Text>
-      
-//       {loading ? (
-//         <ActivityIndicator size="large" color="#00C8DC" />
-//       ) : (
-//         <TouchableOpacity style={styles.testButton} onPress={handleTestUpload}>
-//           <Text style={styles.buttonText}>🔥 Push Test Data</Text>
-//         </TouchableOpacity>
-//       )}
-
-//       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backLink}>
-//         <Text style={{ color: '#888' }}>Go Back</Text>
-//       </TouchableOpacity>
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#f5f5f5' },
-//   header: { fontSize: 22, fontWeight: 'bold', marginBottom: 30 },
-//   testButton: { backgroundColor: '#00C8DC', padding: 20, borderRadius: 12, width: '100%', alignItems: 'center' },
-//   buttonText: { color: 'white', fontSize: 18, fontWeight: 'bold' },
-//   backLink: { marginTop: 30 }
-// });
-
 import React, { useState } from 'react';
 import { 
   StyleSheet, Text, View, TextInput, ScrollView, 
-  TouchableOpacity, Alert, ActivityIndicator 
+  TouchableOpacity, Alert, ActivityIndicator, Image 
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker'; // Import Image Picker
 import { supabase } from '../lib/supabase';
 import { MATERIALS_LIST } from '../constants/materials';
+import { decode } from 'base64-arraybuffer'; // Helpful for file conversion
 
 export default function FormScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
@@ -75,9 +15,9 @@ export default function FormScreen({ navigation }) {
   const [namaPelanggan, setNamaPelanggan] = useState('');
   const [nik, setNik] = useState('');
   const [alamat, setAlamat] = useState('');
-  // const [idPekerja, setIdPekerja] = useState(''); // Temporary hardcoded ID
+  const [image, setImage] = useState(null); // State for the image
 
-  // Checklist State: Initialize with "Ada" for all items by default
+  // Checklist State
   const [itemsStatus, setItemsStatus] = useState(
     MATERIALS_LIST.reduce((acc, item) => {
       acc[item.id] = { name: item.name, status: 'Ada', note: '' };
@@ -85,20 +25,47 @@ export default function FormScreen({ navigation }) {
     }, {})
   );
 
-  const handleToggleStatus = (id, status) => {
-    setItemsStatus(prev => ({
-      ...prev,
-      [id]: { ...prev[id], status: status }
-    }));
+  // --- Image Handling Logic ---
+  const pickImage = async () => {
+    let result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.5, // Compression as discussed in the flowchart
+      base64: true, // We need base64 to convert to ArrayBuffer
+    });
+
+    if (!result.canceled) {
+      setImage(result.assets[0]);
+    }
   };
 
-  const handleNoteChange = (id, text) => {
-    setItemsStatus(prev => ({
-      ...prev,
-      [id]: { ...prev[id], note: text }
-    }));
+  const uploadImage = async () => {
+    if (!image) return null;
+
+    const fileName = `${Date.now()}.jpg`;
+    const filePath = `documentation/${fileName}`;
+
+    // Update the bucket name here to 'foto-dokumentasi'
+    const { data, error } = await supabase.storage
+      .from('foto-dokumentasi') 
+      .upload(filePath, decode(image.base64), {
+        contentType: 'image/jpeg'
+      });
+
+    if (error) {
+      console.error('Upload Error:', error);
+      return null;
+    }
+
+    // Update the bucket name here too
+    const { data: urlData } = supabase.storage
+      .from('foto-dokumentasi')
+      .getPublicUrl(filePath);
+
+    return urlData.publicUrl;
   };
 
+  // --- Submit Logic ---
   const handleSubmit = async () => {
     if (!namaPelanggan || !nik || !alamat) {
       Alert.alert("Error", "Please fill all customer data");
@@ -106,28 +73,32 @@ export default function FormScreen({ navigation }) {
     }
 
     setLoading(true);
-    
-    // Transform state object back into an array for the database
-    const finalItems = Object.values(itemsStatus);
 
-    const { error } = await supabase
-      .from('inspections')
-      .insert([{ 
-        // id_pekerja: idPekerja,
-        nama_pelanggan: namaPelanggan, 
-        nik: nik,
-        alamat: alamat,
-        items: finalItems 
-      }]);
+    try {
+      // 1. Upload Image First (Step 1.7b in flowchart)
+      const photoUrl = await uploadImage();
 
-    setLoading(false);
+      // 2. Insert Data to Table (Step 2.2 in flowchart)
+      const finalItems = Object.values(itemsStatus);
+      const { error } = await supabase
+        .from('inspections')
+        .insert([{ 
+          nama_pelanggan: namaPelanggan, 
+          nik: nik,
+          alamat: alamat,
+          items: finalItems,
+          photo_url: photoUrl // Save the link to the image
+        }]);
 
-    if (error) {
-      Alert.alert("Upload Failed", error.message);
-    } else {
-      Alert.alert("Success", "Full report saved to Supabase!", [
+      if (error) throw error;
+
+      Alert.alert("Success", "Full report with photo saved!", [
         { text: "OK", onPress: () => navigation.goBack() }
       ]);
+    } catch (err) {
+      Alert.alert("Failed", err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -152,29 +123,35 @@ export default function FormScreen({ navigation }) {
             <View style={styles.buttonGroup}>
               <TouchableOpacity 
                 style={[styles.toggleBtn, itemsStatus[item.id].status === 'Ada' && styles.btnActive]} 
-                onPress={() => handleToggleStatus(item.id, 'Ada')}
+                onPress={() => setItemsStatus({...itemsStatus, [item.id]: {...itemsStatus[item.id], status: 'Ada'}})}
               >
                 <Text style={itemsStatus[item.id].status === 'Ada' ? styles.whiteText : styles.blackText}>Ada</Text>
               </TouchableOpacity>
-              
               <TouchableOpacity 
                 style={[styles.toggleBtn, itemsStatus[item.id].status === 'Tidak Ada' && styles.btnError]} 
-                onPress={() => handleToggleStatus(item.id, 'Tidak Ada')}
+                onPress={() => setItemsStatus({...itemsStatus, [item.id]: {...itemsStatus[item.id], status: 'Tidak Ada'}})}
               >
                 <Text style={itemsStatus[item.id].status === 'Tidak Ada' ? styles.whiteText : styles.blackText}>Tidak</Text>
               </TouchableOpacity>
             </View>
-
             {itemsStatus[item.id].status === 'Tidak Ada' && (
               <TextInput 
                 style={styles.noteInput} 
-                placeholder="Alasan / Keterangan..." 
-                value={itemsStatus[item.id].note}
-                onChangeText={(text) => handleNoteChange(item.id, text)}
+                placeholder="Keterangan..." 
+                onChangeText={(text) => setItemsStatus({...itemsStatus, [item.id]: {...itemsStatus[item.id], note: text}})}
               />
             )}
           </View>
         ))}
+      </View>
+
+      {/* Section 3: Documentation Photo (New!) */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Dokumentasi Foto</Text>
+        <TouchableOpacity style={styles.cameraBtn} onPress={pickImage}>
+          <Text style={styles.cameraBtnText}>{image ? "Ganti Foto" : "Ambil Foto Rumah"}</Text>
+        </TouchableOpacity>
+        {image && <Image source={{ uri: image.uri }} style={styles.previewImage} />}
       </View>
 
       {loading ? (
@@ -203,6 +180,9 @@ const styles = StyleSheet.create({
   whiteText: { color: 'white', fontWeight: 'bold' },
   blackText: { color: '#333' },
   noteInput: { backgroundColor: '#fff8f8', marginTop: 10, padding: 8, borderRadius: 5, borderWidth: 1, borderColor: '#FFC1C1' },
+  cameraBtn: { backgroundColor: '#eee', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
+  cameraBtnText: { color: '#333', fontWeight: 'bold' },
+  previewImage: { width: '100%', height: 200, borderRadius: 8, marginTop: 10 },
   submitBtn: { backgroundColor: '#00C8DC', padding: 18, borderRadius: 10, alignItems: 'center' },
   submitText: { color: 'white', fontSize: 18, fontWeight: 'bold' }
 });
