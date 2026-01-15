@@ -3,22 +3,20 @@ import {
   StyleSheet, Text, View, TextInput, ScrollView, 
   TouchableOpacity, Alert, ActivityIndicator, Image 
 } from 'react-native';
-import * as ImagePicker from 'expo-image-picker'; // Import Image Picker
+import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { MATERIALS_LIST } from '../constants/materials';
-import { decode } from 'base64-arraybuffer'; // Helpful for file conversion
+import { decode } from 'base64-arraybuffer';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function FormScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
-  
-  // Basic Info State
   const [namaPelanggan, setNamaPelanggan] = useState('');
-  const [idPelanggan, setIdPelanggan] = useState(''); // New State
+  const [idPelanggan, setIdPelanggan] = useState('');
   const [nik, setNik] = useState('');
   const [alamat, setAlamat] = useState('');
-  const [image, setImage] = useState(null); // State for the image
+  const [image, setImage] = useState(null);
 
-  // Checklist State
   const [itemsStatus, setItemsStatus] = useState(
     MATERIALS_LIST.reduce((acc, item) => {
       acc[item.id] = { name: item.name, status: 'Ada', note: '' };
@@ -26,13 +24,12 @@ export default function FormScreen({ navigation }) {
     }, {})
   );
 
-  // --- Image Handling Logic ---
   const pickImage = async () => {
     let result = await ImagePicker.launchCameraAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      quality: 0.5, // Compression as discussed in the flowchart
-      base64: true, // We need base64 to convert to ArrayBuffer
+      quality: 0.5,
+      base64: true,
     });
 
     if (!result.canceled) {
@@ -42,23 +39,15 @@ export default function FormScreen({ navigation }) {
 
   const uploadImage = async () => {
     if (!image) return null;
-
     const fileName = `${Date.now()}.jpg`;
     const filePath = `documentation/${fileName}`;
 
-    // Update the bucket name here to 'foto-dokumentasi'
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from('foto-dokumentasi') 
-      .upload(filePath, decode(image.base64), {
-        contentType: 'image/jpeg'
-      });
+      .upload(filePath, decode(image.base64), { contentType: 'image/jpeg' });
 
-    if (error) {
-      console.error('Upload Error:', error);
-      return null;
-    }
+    if (error) return null;
 
-    // Update the bucket name here too
     const { data: urlData } = supabase.storage
       .from('foto-dokumentasi')
       .getPublicUrl(filePath);
@@ -66,40 +55,67 @@ export default function FormScreen({ navigation }) {
     return urlData.publicUrl;
   };
 
-  // --- Submit Logic ---
   const handleSubmit = async () => {
     if (!namaPelanggan || !nik || !idPelanggan || !alamat) {
-      Alert.alert("Error", "Please fill all customer data");
+      Alert.alert("Error", "Mohon lengkapi semua data pelanggan.");
+      return;
+    }
+
+    if (!image) {
+      Alert.alert("Foto Dibutuhkan", "Anda wajib mengambil foto dokumentasi sebelum mengirim laporan.");
+      return;
+    }
+
+    const checklistItems = Object.values(itemsStatus);
+    const hasIssue = checklistItems.some(i => i.status === 'Tidak Ada');
+    
+    const missingNotes = checklistItems.filter(i => i.status === 'Tidak Ada' && !i.note.trim());
+
+    if (missingNotes.length > 0) {
+      Alert.alert(
+        "Catatan Dibutuhkan", 
+        `Mohon isi keterangan untuk material: ${missingNotes.map(m => m.name).join(", ")}`
+      );
       return;
     }
 
     setLoading(true);
 
-    // LOGIC: Check if any item is "Tidak Ada"
-    const finalItems = Object.values(itemsStatus);
-    const hasIssue = finalItems.some(item => item.status === 'Tidak Ada');
-    const autoStatus = hasIssue ? 'RED' : 'GREEN';
+    const finalData = {
+      id: Date.now(), 
+      id_pelanggan: idPelanggan,
+      nama_pelanggan: namaPelanggan,
+      nik: nik,
+      alamat: alamat,
+      items: checklistItems,
+      photo_url: image.uri, 
+      is_synced: false, 
+      validation_status: hasIssue ? 'RED' : 'GREEN'
+    };
 
     try {
       const photoUrl = await uploadImage();
-
       const { error } = await supabase
         .from('inspections')
-        .insert([{ 
-          nama_pelanggan: namaPelanggan, 
-          id_pelanggan: idPelanggan,
-          nik: nik,
-          alamat: alamat,
-          items: finalItems,
-          photo_url: photoUrl,
-          validation_status: autoStatus // Save the Auto-Color
-        }]);
+        .insert([{ ...finalData, photo_url: photoUrl, is_synced: true }]);
 
       if (error) throw error;
-      Alert.alert("Success", `Report saved as ${autoStatus}!`);
+      
+      Alert.alert("Sukses", "Data berhasil dikirim!");
       navigation.goBack();
+
     } catch (err) {
-      Alert.alert("Failed", err.message);
+      try {
+        const existingData = await AsyncStorage.getItem('offline_inspections');
+        const offlineList = existingData ? JSON.parse(existingData) : [];
+        offlineList.push(finalData);
+        await AsyncStorage.setItem('offline_inspections', JSON.stringify(offlineList));
+        
+        Alert.alert("Mode Offline", "Koneksi gagal. Data tersimpan di HP!");
+        navigation.goBack();
+      } catch (e) {
+        Alert.alert("Error", "Gagal simpan lokal.");
+      }
     } finally {
       setLoading(false);
     }
@@ -109,39 +125,14 @@ export default function FormScreen({ navigation }) {
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
       <Text style={styles.header}>Input Data Uji Petik</Text>
 
-      {/* Section 1: Metadata */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Data Pelanggan</Text>
-        <TextInput 
-          style={styles.input} 
-          placeholder="Nama Pelanggan" 
-          value={namaPelanggan} 
-          onChangeText={setNamaPelanggan} 
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="ID Pelanggan (12 Digit)" 
-          keyboardType="numeric" 
-          value={idPelanggan} 
-          onChangeText={setIdPelanggan} 
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="NIK" 
-          keyboardType="numeric" 
-          value={nik} 
-          onChangeText={setNik} 
-        />
-        <TextInput 
-          style={[styles.input, { height: 80 }]} 
-          placeholder="Alamat Lengkap" 
-          multiline 
-          value={alamat} 
-          onChangeText={setAlamat} 
-        />
+        <TextInput style={styles.input} placeholder="Nama Pelanggan" value={namaPelanggan} onChangeText={setNamaPelanggan} />
+        <TextInput style={styles.input} placeholder="ID Pelanggan (12 Digit)" keyboardType="numeric" value={idPelanggan} onChangeText={setIdPelanggan} />
+        <TextInput style={styles.input} placeholder="NIK" keyboardType="numeric" value={nik} onChangeText={setNik} />
+        <TextInput style={[styles.input, { height: 60 }]} placeholder="Alamat Lengkap" multiline value={alamat} onChangeText={setAlamat} />
       </View>
 
-      {/* Section 2: Checklist */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Checklist Material</Text>
         {MATERIALS_LIST.map((item) => (
@@ -172,7 +163,6 @@ export default function FormScreen({ navigation }) {
         ))}
       </View>
 
-      {/* Section 3: Documentation Photo (New!) */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Dokumentasi Foto</Text>
         <TouchableOpacity style={styles.cameraBtn} onPress={pickImage}>
@@ -197,19 +187,19 @@ const styles = StyleSheet.create({
   header: { fontSize: 22, fontWeight: 'bold', marginVertical: 20, textAlign: 'center' },
   section: { backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 20, elevation: 2 },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 15, color: '#333' },
-  input: { borderBottomWidth: 1, borderColor: '#ddd', marginBottom: 15, padding: 8, fontSize: 16 },
+  input: { borderBottomWidth: 1, borderColor: '#ddd', marginBottom: 15, padding: 8, fontSize: 15 },
   itemRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
   itemName: { fontSize: 14, color: '#444', marginBottom: 8 },
   buttonGroup: { flexDirection: 'row', gap: 10 },
-  toggleBtn: { flex: 1, padding: 10, borderRadius: 5, alignItems: 'center', borderWidth: 1, borderColor: '#ddd' },
+  toggleBtn: { flex: 1, padding: 8, borderRadius: 5, alignItems: 'center', borderWidth: 1, borderColor: '#ddd' },
   btnActive: { backgroundColor: '#00C8DC', borderColor: '#00C8DC' },
   btnError: { backgroundColor: '#FF5252', borderColor: '#FF5252' },
   whiteText: { color: 'white', fontWeight: 'bold' },
   blackText: { color: '#333' },
   noteInput: { backgroundColor: '#fff8f8', marginTop: 10, padding: 8, borderRadius: 5, borderWidth: 1, borderColor: '#FFC1C1' },
-  cameraBtn: { backgroundColor: '#eee', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
+  cameraBtn: { backgroundColor: '#eee', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
   cameraBtnText: { color: '#333', fontWeight: 'bold' },
   previewImage: { width: '100%', height: 200, borderRadius: 8, marginTop: 10 },
-  submitBtn: { backgroundColor: '#00C8DC', padding: 18, borderRadius: 10, alignItems: 'center' },
-  submitText: { color: 'white', fontSize: 18, fontWeight: 'bold' }
+  submitBtn: { backgroundColor: '#00C8DC', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
+  submitText: { color: 'white', fontSize: 17, fontWeight: 'bold' }
 });

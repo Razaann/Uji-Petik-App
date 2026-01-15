@@ -23,8 +23,9 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
-import HomeScreen from './screens/HomeScreen'; // Your existing code
-import FormScreen from './screens/FormScreen'; // The new "Hello World" page
+import HomeScreen from './screens/HomeScreen';
+import FormScreen from './screens/FormScreen';
+import DetailsScreen from './screens/DetailsScreen';
 
 const Stack = createStackNavigator();
 
@@ -34,6 +35,7 @@ export default function App() {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         <Stack.Screen name="Home" component={HomeScreen} />
         <Stack.Screen name="Form" component={FormScreen} />
+        <Stack.Screen name="Details" component={DetailsScreen} />
       </Stack.Navigator>
     </NavigationContainer>
   );
