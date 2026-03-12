@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { 
-  StyleSheet, Text, View, ScrollView, Image, 
-  TouchableOpacity, Alert, ActivityIndicator 
+import {
+  StyleSheet, Text, View, ScrollView, Image,
+  TouchableOpacity, Alert, ActivityIndicator
 } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
@@ -64,11 +64,11 @@ export default function DetailsScreen({ route, navigation }) {
 
       const { error } = await supabase
         .from('inspections')
-        .insert([{ 
-          ...data, 
+        .insert([{
+          ...data,
           id: undefined, // Let Supabase generate a real ID
-          photo_url: finalPhotoUrl, 
-          is_synced: true 
+          photo_url: finalPhotoUrl,
+          is_synced: true
         }]);
 
       if (error) throw error;
@@ -96,8 +96,11 @@ export default function DetailsScreen({ route, navigation }) {
       <html>
         <body style="padding: 40px; font-family: sans-serif;">
           <h1 style="color: #00C8DC;">Laporan Uji Petik</h1>
+          <p><b>ID Pegawai:</b> ${data.id_pegawai}</p>
+          <p><b>Nama Pegawai:</b> ${data.nama_pegawai}</p>
           <p><b>ID Pelanggan:</b> ${data.id_pelanggan}</p>
-          <p><b>Nama:</b> ${data.nama_pelanggan}</p>
+          <p><b>Nama Pelanggan:</b> ${data.nama_pelanggan}</p>
+          <p><b>NIK:</b> ${data.nik}</p>
           <p><b>Alamat:</b> ${data.alamat}</p>
           <hr/>
           <h3>Hasil Pemeriksaan Material:</h3>
@@ -120,9 +123,9 @@ export default function DetailsScreen({ route, navigation }) {
 
   return (
     <ScrollView style={styles.container}>
-      <Image 
-        source={data.photo_url ? { uri: data.photo_url } : require('../img/placeholder.png')} 
-        style={styles.mainImage} 
+      <Image
+        source={data.photo_url ? { uri: data.photo_url } : require('../img/placeholder.png')}
+        style={styles.mainImage}
       />
 
       <View style={styles.infoBox}>
@@ -136,7 +139,7 @@ export default function DetailsScreen({ route, navigation }) {
         <Text style={styles.sectionTitle}>Checklist Hasil Lapangan</Text>
         {data.items.map((item, index) => (
           <View key={index} style={styles.itemRow}>
-            <View style={{flex: 1}}>
+            <View style={{ flex: 1 }}>
               <Text style={styles.itemName}>{item.name}</Text>
               {item.note ? <Text style={styles.itemNote}>Ket: {item.note}</Text> : null}
             </View>
@@ -153,8 +156,8 @@ export default function DetailsScreen({ route, navigation }) {
           <Text style={styles.btnText}>Cetak PDF</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={[styles.syncBtn, isSynced && styles.disabledBtn]} 
+        <TouchableOpacity
+          style={[styles.syncBtn, isSynced && styles.disabledBtn]}
           onPress={handleManualSync}
           disabled={updating || isSynced}
         >

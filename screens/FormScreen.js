@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { 
-  StyleSheet, Text, View, TextInput, ScrollView, 
-  TouchableOpacity, Alert, ActivityIndicator, Image 
+import {
+  StyleSheet, Text, View, TextInput, ScrollView,
+  TouchableOpacity, Alert, ActivityIndicator, Image
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
@@ -11,6 +11,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function FormScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
+  const [namaPegawai, setNamaPegawai] = useState('');
+  const [idPegawai, setIdPegawai] = useState('');
   const [namaPelanggan, setNamaPelanggan] = useState('');
   const [idPelanggan, setIdPelanggan] = useState('');
   const [nik, setNik] = useState('');
@@ -43,7 +45,7 @@ export default function FormScreen({ navigation }) {
     const filePath = `documentation/${fileName}`;
 
     const { error } = await supabase.storage
-      .from('foto-dokumentasi') 
+      .from('foto-dokumentasi')
       .upload(filePath, decode(image.base64), { contentType: 'image/jpeg' });
 
     if (error) return null;
@@ -56,8 +58,8 @@ export default function FormScreen({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    if (!namaPelanggan || !nik || !idPelanggan || !alamat) {
-      Alert.alert("Error", "Mohon lengkapi semua data pelanggan.");
+    if (!namaPegawai || !idPegawai || !namaPelanggan || !nik || !idPelanggan || !alamat) {
+      Alert.alert("Error", "Mohon lengkapi semua data pegawai dan pelanggan.");
       return;
     }
 
@@ -68,12 +70,12 @@ export default function FormScreen({ navigation }) {
 
     const checklistItems = Object.values(itemsStatus);
     const hasIssue = checklistItems.some(i => i.status === 'Tidak Ada');
-    
+
     const missingNotes = checklistItems.filter(i => i.status === 'Tidak Ada' && !i.note.trim());
 
     if (missingNotes.length > 0) {
       Alert.alert(
-        "Catatan Dibutuhkan", 
+        "Catatan Dibutuhkan",
         `Mohon isi keterangan untuk material: ${missingNotes.map(m => m.name).join(", ")}`
       );
       return;
@@ -82,14 +84,16 @@ export default function FormScreen({ navigation }) {
     setLoading(true);
 
     const finalData = {
-      id: Date.now(), 
+      id: Date.now(),
+      id_pegawai: idPegawai,
+      nama_pegawai: namaPegawai,
       id_pelanggan: idPelanggan,
       nama_pelanggan: namaPelanggan,
       nik: nik,
       alamat: alamat,
       items: checklistItems,
-      photo_url: image.uri, 
-      is_synced: false, 
+      photo_url: image.uri,
+      is_synced: false,
       validation_status: hasIssue ? 'RED' : 'GREEN'
     };
 
@@ -100,7 +104,7 @@ export default function FormScreen({ navigation }) {
         .insert([{ ...finalData, photo_url: photoUrl, is_synced: true }]);
 
       if (error) throw error;
-      
+
       Alert.alert("Sukses", "Data berhasil dikirim!");
       navigation.goBack();
 
@@ -110,7 +114,7 @@ export default function FormScreen({ navigation }) {
         const offlineList = existingData ? JSON.parse(existingData) : [];
         offlineList.push(finalData);
         await AsyncStorage.setItem('offline_inspections', JSON.stringify(offlineList));
-        
+
         Alert.alert("Mode Offline", "Koneksi gagal. Data tersimpan di HP!");
         navigation.goBack();
       } catch (e) {
@@ -126,10 +130,16 @@ export default function FormScreen({ navigation }) {
       <Text style={styles.header}>Input Data Uji Petik</Text>
 
       <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Data Pegawai</Text>
+        <TextInput style={styles.input} placeholder="Nama Pegawai" value={namaPegawai} onChangeText={setNamaPegawai} />
+        <TextInput style={styles.input} placeholder="ID Pegawai" keyboardType="numeric" value={idPegawai} onChangeText={setIdPegawai} />
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Data Pelanggan</Text>
         <TextInput style={styles.input} placeholder="Nama Pelanggan" value={namaPelanggan} onChangeText={setNamaPelanggan} />
         <TextInput style={styles.input} placeholder="ID Pelanggan (12 Digit)" keyboardType="numeric" value={idPelanggan} onChangeText={setIdPelanggan} />
-        <TextInput style={styles.input} placeholder="NIK" keyboardType="numeric" value={nik} onChangeText={setNik} />
+        <TextInput style={styles.input} placeholder="NIK (16 Digit)" keyboardType="numeric" value={nik} onChangeText={setNik} />
         <TextInput style={[styles.input, { height: 60 }]} placeholder="Alamat Lengkap" multiline value={alamat} onChangeText={setAlamat} />
       </View>
 
@@ -139,24 +149,24 @@ export default function FormScreen({ navigation }) {
           <View key={item.id} style={styles.itemRow}>
             <Text style={styles.itemName}>{item.name}</Text>
             <View style={styles.buttonGroup}>
-              <TouchableOpacity 
-                style={[styles.toggleBtn, itemsStatus[item.id].status === 'Ada' && styles.btnActive]} 
-                onPress={() => setItemsStatus({...itemsStatus, [item.id]: {...itemsStatus[item.id], status: 'Ada'}})}
+              <TouchableOpacity
+                style={[styles.toggleBtn, itemsStatus[item.id].status === 'Ada' && styles.btnActive]}
+                onPress={() => setItemsStatus({ ...itemsStatus, [item.id]: { ...itemsStatus[item.id], status: 'Ada' } })}
               >
                 <Text style={itemsStatus[item.id].status === 'Ada' ? styles.whiteText : styles.blackText}>Ada</Text>
               </TouchableOpacity>
-              <TouchableOpacity 
-                style={[styles.toggleBtn, itemsStatus[item.id].status === 'Tidak Ada' && styles.btnError]} 
-                onPress={() => setItemsStatus({...itemsStatus, [item.id]: {...itemsStatus[item.id], status: 'Tidak Ada'}})}
+              <TouchableOpacity
+                style={[styles.toggleBtn, itemsStatus[item.id].status === 'Tidak Ada' && styles.btnError]}
+                onPress={() => setItemsStatus({ ...itemsStatus, [item.id]: { ...itemsStatus[item.id], status: 'Tidak Ada' } })}
               >
                 <Text style={itemsStatus[item.id].status === 'Tidak Ada' ? styles.whiteText : styles.blackText}>Tidak</Text>
               </TouchableOpacity>
             </View>
             {itemsStatus[item.id].status === 'Tidak Ada' && (
-              <TextInput 
-                style={styles.noteInput} 
-                placeholder="Keterangan..." 
-                onChangeText={(text) => setItemsStatus({...itemsStatus, [item.id]: {...itemsStatus[item.id], note: text}})}
+              <TextInput
+                style={styles.noteInput}
+                placeholder="Keterangan..."
+                onChangeText={(text) => setItemsStatus({ ...itemsStatus, [item.id]: { ...itemsStatus[item.id], note: text } })}
               />
             )}
           </View>
