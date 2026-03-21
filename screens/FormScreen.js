@@ -6,8 +6,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { MATERIALS_LIST } from '../constants/materials';
-import { decode } from 'base64-arraybuffer';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { saveOfflineInspection } from '../lib/syncService';
 
 export default function FormScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
@@ -18,6 +17,7 @@ export default function FormScreen({ navigation }) {
   const [nik, setNik] = useState('');
   const [alamat, setAlamat] = useState('');
   const [image, setImage] = useState(null);
+  const [imageBase64, setImageBase64] = useState(null);
 
   const [itemsStatus, setItemsStatus] = useState(
     MATERIALS_LIST.reduce((acc, item) => {
@@ -28,33 +28,45 @@ export default function FormScreen({ navigation }) {
 
   const pickImage = async () => {
     let result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
-      quality: 0.5,
+      quality: 0.7,
       base64: true,
     });
 
-    if (!result.canceled) {
-      setImage(result.assets[0]);
+    if (!result.canceled && result.assets[0].base64) {
+      const asset = result.assets[0];
+      setImage({ uri: asset.uri });
+      setImageBase64(`data:image/jpeg;base64,${asset.base64}`);
     }
   };
 
-  const uploadImage = async () => {
-    if (!image) return null;
-    const fileName = `${Date.now()}.jpg`;
-    const filePath = `documentation/${fileName}`;
+  const uploadImage = async (base64Data) => {
+    try {
+      const fileName = `${Date.now()}.jpg`;
+      const filePath = `documentation/${fileName}`;
 
-    const { error } = await supabase.storage
-      .from('foto-dokumentasi')
-      .upload(filePath, decode(image.base64), { contentType: 'image/jpeg' });
+      const binaryString = atob(base64Data);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
 
-    if (error) return null;
+      const { error } = await supabase.storage
+        .from('foto-dokumentasi')
+        .upload(filePath, bytes, { contentType: 'image/jpeg' });
 
-    const { data: urlData } = supabase.storage
-      .from('foto-dokumentasi')
-      .getPublicUrl(filePath);
+      if (error) return null;
 
-    return urlData.publicUrl;
+      const { data: urlData } = supabase.storage
+        .from('foto-dokumentasi')
+        .getPublicUrl(filePath);
+
+      return urlData.publicUrl;
+    } catch (e) {
+      console.error('Upload error:', e);
+      return null;
+    }
   };
 
   const handleSubmit = async () => {
@@ -83,7 +95,7 @@ export default function FormScreen({ navigation }) {
 
     setLoading(true);
 
-    const finalData = {
+    const inspectionData = {
       id: Date.now(),
       id_pegawai: idPegawai,
       nama_pegawai: namaPegawai,
@@ -92,16 +104,17 @@ export default function FormScreen({ navigation }) {
       nik: nik,
       alamat: alamat,
       items: checklistItems,
-      photo_url: image.uri,
+      photo_url: imageBase64,
       is_synced: false,
-      validation_status: hasIssue ? 'RED' : 'GREEN'
+      validation_status: hasIssue ? 'RED' : 'GREEN',
+      created_at: new Date().toISOString()
     };
 
     try {
-      const photoUrl = await uploadImage();
+      const photoUrl = await uploadImage(imageBase64.split(',')[1]);
       const { error } = await supabase
         .from('inspections')
-        .insert([{ ...finalData, photo_url: photoUrl, is_synced: true }]);
+        .insert([{ ...inspectionData, photo_url: photoUrl, is_synced: true }]);
 
       if (error) throw error;
 
@@ -109,16 +122,13 @@ export default function FormScreen({ navigation }) {
       navigation.goBack();
 
     } catch (err) {
-      try {
-        const existingData = await AsyncStorage.getItem('offline_inspections');
-        const offlineList = existingData ? JSON.parse(existingData) : [];
-        offlineList.push(finalData);
-        await AsyncStorage.setItem('offline_inspections', JSON.stringify(offlineList));
-
-        Alert.alert("Mode Offline", "Koneksi gagal. Data tersimpan di HP!");
-        navigation.goBack();
-      } catch (e) {
-        Alert.alert("Error", "Gagal simpan lokal.");
+      const saved = await saveOfflineInspection(inspectionData);
+      if (saved) {
+        Alert.alert("Mode Offline", "Koneksi gagal. Data tersimpan di HP!\nAkan otomatis terkirim saat koneksi tersedia.", [
+          { text: 'OK', onPress: () => navigation.goBack() }
+        ]);
+      } else {
+        Alert.alert("Error", "Gagal simpan data.");
       }
     } finally {
       setLoading(false);
