@@ -33,6 +33,7 @@ const Stack = createStackNavigator();
 export default function App() {
   const [fontsLoaded] = useFonts({
     'SpotifyMix-Bold': require('./assets/font/SpotifyMix-Bold.ttf'),
+    'SpotifyMix-Medium': require('./assets/font/SpotifyMix-Medium.ttf'),
     'SpotifyMix-Regular': require('./assets/font/SpotifyMix-Regular.ttf'),
   });
 

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import {
-  StyleSheet, Text, View, TextInput, ScrollView,
+  StyleSheet, View, TextInput, ScrollView,
   TouchableOpacity, Alert, ActivityIndicator, Image
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { supabase } from '../lib/supabase';
 import { MATERIALS_LIST } from '../constants/materials';
 import { saveOfflineInspection } from '../lib/syncService';
+import CustomText from '../components/CustomText';
 
 export default function FormScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
@@ -137,16 +138,16 @@ export default function FormScreen({ navigation }) {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 40 }}>
-      <Text style={styles.header}>Input Data Uji Petik</Text>
+      <CustomText weight="bold" style={styles.header}>Input Data Uji Petik</CustomText>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Data Pegawai</Text>
+        <CustomText weight="bold" style={styles.sectionTitle}>Data Pegawai</CustomText>
         <TextInput style={styles.input} placeholder="Nama Pegawai" value={namaPegawai} onChangeText={setNamaPegawai} />
         <TextInput style={styles.input} placeholder="ID Pegawai" keyboardType="numeric" value={idPegawai} onChangeText={setIdPegawai} />
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Data Pelanggan</Text>
+        <CustomText weight="bold" style={styles.sectionTitle}>Data Pelanggan</CustomText>
         <TextInput style={styles.input} placeholder="Nama Pelanggan" value={namaPelanggan} onChangeText={setNamaPelanggan} />
         <TextInput style={styles.input} placeholder="ID Pelanggan (12 Digit)" keyboardType="numeric" value={idPelanggan} onChangeText={setIdPelanggan} />
         <TextInput style={styles.input} placeholder="NIK (16 Digit)" keyboardType="numeric" value={nik} onChangeText={setNik} />
@@ -154,22 +155,22 @@ export default function FormScreen({ navigation }) {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Checklist Material</Text>
+        <CustomText weight="bold" style={styles.sectionTitle}>Checklist Material</CustomText>
         {MATERIALS_LIST.map((item) => (
           <View key={item.id} style={styles.itemRow}>
-            <Text style={styles.itemName}>{item.name}</Text>
+            <CustomText style={styles.itemName}>{item.name}</CustomText>
             <View style={styles.buttonGroup}>
               <TouchableOpacity
                 style={[styles.toggleBtn, itemsStatus[item.id].status === 'Ada' && styles.btnActive]}
                 onPress={() => setItemsStatus({ ...itemsStatus, [item.id]: { ...itemsStatus[item.id], status: 'Ada' } })}
               >
-                <Text style={itemsStatus[item.id].status === 'Ada' ? styles.whiteText : styles.blackText}>Ada</Text>
+                <CustomText weight={itemsStatus[item.id].status === 'Ada' ? 'bold' : 'regular'} style={itemsStatus[item.id].status === 'Ada' ? styles.whiteText : styles.blackText}>Ada</CustomText>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.toggleBtn, itemsStatus[item.id].status === 'Tidak Ada' && styles.btnError]}
                 onPress={() => setItemsStatus({ ...itemsStatus, [item.id]: { ...itemsStatus[item.id], status: 'Tidak Ada' } })}
               >
-                <Text style={itemsStatus[item.id].status === 'Tidak Ada' ? styles.whiteText : styles.blackText}>Tidak</Text>
+                <CustomText weight={itemsStatus[item.id].status === 'Tidak Ada' ? 'bold' : 'regular'} style={itemsStatus[item.id].status === 'Tidak Ada' ? styles.whiteText : styles.blackText}>Tidak</CustomText>
               </TouchableOpacity>
             </View>
             {itemsStatus[item.id].status === 'Tidak Ada' && (
@@ -184,9 +185,9 @@ export default function FormScreen({ navigation }) {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Dokumentasi Foto</Text>
+        <CustomText weight="bold" style={styles.sectionTitle}>Dokumentasi Foto</CustomText>
         <TouchableOpacity style={styles.cameraBtn} onPress={pickImage}>
-          <Text style={styles.cameraBtnText}>{image ? "Ganti Foto" : "Ambil Foto Rumah"}</Text>
+          <CustomText weight="bold" style={styles.cameraBtnText}>{image ? "Ganti Foto" : "Ambil Foto Rumah"}</CustomText>
         </TouchableOpacity>
         {image && <Image source={{ uri: image.uri }} style={styles.previewImage} />}
       </View>
@@ -195,7 +196,7 @@ export default function FormScreen({ navigation }) {
         <ActivityIndicator size="large" color="#00C8DC" />
       ) : (
         <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-          <Text style={styles.submitText}>Kirim Laporan</Text>
+          <CustomText weight="bold" style={styles.submitText}>Kirim Laporan</CustomText>
         </TouchableOpacity>
       )}
     </ScrollView>
@@ -204,9 +205,9 @@ export default function FormScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f9f9f9', padding: 15 },
-  header: { fontSize: 22, fontWeight: 'bold', marginVertical: 20, textAlign: 'center' },
+  header: { fontSize: 22, marginVertical: 20, textAlign: 'center' },
   section: { backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 20, elevation: 2 },
-  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 15, color: '#333' },
+  sectionTitle: { fontSize: 16, marginBottom: 15, color: '#333' },
   input: { borderBottomWidth: 1, borderColor: '#ddd', marginBottom: 15, padding: 8, fontSize: 15 },
   itemRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
   itemName: { fontSize: 14, color: '#444', marginBottom: 8 },
@@ -214,12 +215,12 @@ const styles = StyleSheet.create({
   toggleBtn: { flex: 1, padding: 8, borderRadius: 5, alignItems: 'center', borderWidth: 1, borderColor: '#ddd' },
   btnActive: { backgroundColor: '#00C8DC', borderColor: '#00C8DC' },
   btnError: { backgroundColor: '#FF5252', borderColor: '#FF5252' },
-  whiteText: { color: 'white', fontWeight: 'bold' },
+  whiteText: { color: 'white' },
   blackText: { color: '#333' },
   noteInput: { backgroundColor: '#fff8f8', marginTop: 10, padding: 8, borderRadius: 5, borderWidth: 1, borderColor: '#FFC1C1' },
   cameraBtn: { backgroundColor: '#eee', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
-  cameraBtnText: { color: '#333', fontWeight: 'bold' },
+  cameraBtnText: { color: '#333' },
   previewImage: { width: '100%', height: 200, borderRadius: 8, marginTop: 10 },
   submitBtn: { backgroundColor: '#00C8DC', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
-  submitText: { color: 'white', fontSize: 17, fontWeight: 'bold' }
+  submitText: { color: 'white', fontSize: 17 }
 });
