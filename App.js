@@ -23,6 +23,7 @@
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
+import { useFonts } from 'expo-font';
 import HomeScreen from './screens/HomeScreen';
 import FormScreen from './screens/FormScreen';
 import DetailsScreen from './screens/DetailsScreen';
@@ -30,6 +31,15 @@ import DetailsScreen from './screens/DetailsScreen';
 const Stack = createStackNavigator();
 
 export default function App() {
+  const [fontsLoaded] = useFonts({
+    'SpotifyMix-Bold': require('./assets/font/SpotifyMix-Bold.ttf'),
+    'SpotifyMix-Regular': require('./assets/font/SpotifyMix-Regular.ttf'),
+  });
+
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>

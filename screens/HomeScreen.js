@@ -162,8 +162,8 @@ export default function HomeScreen({ navigation }) {
         <View style={styles.headerOverlay}>
           <View style={styles.headerTopRow}>
             <View>
-              <Text style={styles.headerTitle}>Uji Petik</Text>
-              <Text style={styles.headerSubtitle}>Aplikasi Digitalisasi Pengumpulan Data</Text>
+              <Text style={[styles.headerTitle, { fontFamily: 'SpotifyMix-Bold' }]}>Uji Petik</Text>
+              <Text style={[styles.headerSubtitle, { fontFamily: 'SpotifyMix-Regular' }]}>Aplikasi Digitalisasi Pengumpulan Data</Text>
             </View>
             {pendingCount > 0 && (
               <TouchableOpacity style={styles.badgeBtn} onPress={handleSyncAll}>
