@@ -166,14 +166,6 @@ export default function HomeScreen({ navigation }) {
               <CustomText weight="bold" style={styles.headerTitle}>Uji Petik</CustomText>
               <CustomText weight="regular" style={styles.headerSubtitle}>Aplikasi Digitalisasi Pengumpulan Data</CustomText>
             </View>
-            {pendingCount > 0 && (
-              <TouchableOpacity style={styles.badgeBtn} onPress={handleSyncAll}>
-                <Ionicons name="sync" size={24} color="white" />
-                <View style={styles.badge}>
-                  <CustomText weight="bold" style={styles.badgeText}>{pendingCount}</CustomText>
-                </View>
-              </TouchableOpacity>
-            )}
           </View>
         </View>
       </ImageBackground>

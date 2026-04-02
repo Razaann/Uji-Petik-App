@@ -106,7 +106,7 @@ export default function DetailsScreen({ route, navigation }) {
         </body>
       </html>
     `;
-    
+
     try {
       const { uri } = await Print.printToFileAsync({ html });
       await Sharing.shareAsync(uri);
@@ -117,8 +117,8 @@ export default function DetailsScreen({ route, navigation }) {
 
   const imageSource = data.photo_url?.startsWith('data:')
     ? { uri: data.photo_url }
-    : data.photo_url 
-      ? { uri: data.photo_url } 
+    : data.photo_url
+      ? { uri: data.photo_url }
       : require('../img/placeholder.png');
 
   return (
@@ -126,10 +126,10 @@ export default function DetailsScreen({ route, navigation }) {
       <Image source={imageSource} style={styles.mainImage} />
 
       <View style={styles.syncStatusBar}>
-        <Ionicons 
-          name={isSynced ? "cloud-done" : "cloud-offline"} 
-          size={18} 
-          color={isSynced ? "#2ECC71" : "#E74C3C"} 
+        <Ionicons
+          name={isSynced ? "cloud-done" : "cloud-offline"}
+          size={18}
+          color={isSynced ? "#2ECC71" : "#E74C3C"}
         />
         <CustomText weight="bold" style={[styles.syncStatusText, { color: isSynced ? "#2ECC71" : "#E74C3C" }]}>
           {isSynced ? 'Tersimpan di Database' : 'Belum Tersinkronkan'}
@@ -144,7 +144,7 @@ export default function DetailsScreen({ route, navigation }) {
       </View>
 
       <View style={styles.employeeBox}>
-        <CustomText style={styles.employeeLabel}>Petugas:</CustomText>
+        <CustomText style={styles.employeeLabel}>Pegawai:</CustomText>
         <CustomText weight="bold" style={styles.employeeName}>{data.nama_pegawai}</CustomText>
         <CustomText style={styles.employeeId}>ID: {data.id_pegawai}</CustomText>
       </View>
