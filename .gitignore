@@ -31,7 +31,13 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+
+# Config file with sensitive data
+config.js
+!.env.example
+!.config.example.js
 
 # typescript
 *.tsbuildinfo
