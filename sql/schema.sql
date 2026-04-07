@@ -23,8 +23,15 @@ CREATE TABLE IF NOT EXISTS uji_petik (
   items JSONB NOT NULL,
   photo_url TEXT,
   validation_status TEXT DEFAULT 'GREEN',
+  is_synced BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Hapus data lama yang tidak ada is_synced (opsional, jalankan jika perlu)
+-- DELETE FROM uji_petik WHERE is_synced IS NULL;
+
+-- Update is_synced untuk data yang sudah ada
+UPDATE uji_petik SET is_synced = TRUE WHERE is_synced IS NULL;
 
 -- 3. Aktifkan RLS (Row Level Security)
 ALTER TABLE pegawai ENABLE ROW LEVEL SECURITY;

@@ -31,8 +31,10 @@ export default function HomeScreen({ navigation, user, onLogout }) {
       const offlineData = await getOfflineInspections();
       const filteredOffline = offlineData.filter(i => i.id_pegawai === user.id);
 
-      const offlineIds = new Set(filteredOffline.map(i => i.id_pelanggan));
-      const uniqueOnline = (onlineData || []).filter(i => !offlineIds.has(i.id_pelanggan));
+      const offlineIds = new Set(filteredOffline.map(i => i.id));
+      const uniqueOnline = (onlineData || [])
+        .filter(i => !offlineIds.has(i.id))
+        .map(i => ({ ...i, is_synced: true }));
 
       const combined = [...filteredOffline, ...uniqueOnline];
       setInspections(combined);
@@ -86,19 +88,27 @@ export default function HomeScreen({ navigation, user, onLogout }) {
     setShowSyncModal(true);
     setSyncProgress({ current: 0, total: pendingCount });
 
-    const results = await syncAllPending(({ current, total, success, failed }) => {
+    const results = await syncAllPending(user.id, ({ current, total, success, failed, skipped }) => {
       setSyncProgress({ current, total });
     });
 
     setSyncing(false);
     setShowSyncModal(false);
 
-    if (results.failed === 0) {
-      Alert.alert('Berhasil', `Semua ${results.success} data berhasil dikirim ke database!`);
+    let message = '';
+    if (results.skipped > 0) {
+      message += `${results.skipped} data sudah ada, `;
+    }
+    if (results.success > 0) {
+      message += `${results.success} data terkirim, `;
+    }
+    if (results.failed > 0) {
+      message += `${results.failed} gagal.`;
     } else {
-      Alert.alert('Sebagian Berhasil', `${results.success} data terkirim, ${results.failed} gagal.`);
+      message = message.slice(0, -2) + '.';
     }
 
+    Alert.alert('Sinkronisasi Selesai', message);
     fetchInspections();
   };
 

@@ -66,7 +66,7 @@ export default function LoginScreen({ navigation, onLogin }) {
   };
 
   return (
-    <KeyboardAvoidingView 
+    <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
@@ -107,15 +107,15 @@ export default function LoginScreen({ navigation, onLogin }) {
                   autoCapitalize="none"
                 />
                 <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIcon}>
-                  <Ionicons 
-                    name={showPassword ? "eye-off-outline" : "eye-outline"} 
-                    size={20} 
-                    color="#888" 
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={20}
+                    color="#888"
                   />
                 </TouchableOpacity>
               </View>
 
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={[styles.loginBtn, loading && styles.loginBtnDisabled]}
                 onPress={handleLogin}
                 disabled={loading}
@@ -130,7 +130,6 @@ export default function LoginScreen({ navigation, onLogin }) {
 
             <View style={styles.footer}>
               <CustomText style={styles.footerText}>Sistem Digitalisasi Pengumpulan Data</CustomText>
-              <CustomText style={styles.versionText}>v1.0</CustomText>
             </View>
           </View>
         </View>

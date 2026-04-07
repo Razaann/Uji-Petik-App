@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { MATERIALS_LIST } from '../constants/materials';
-import { saveOfflineInspection } from '../lib/syncService';
+import { saveOfflineInspection, removeOfflineInspectionByCustomer } from '../lib/syncService';
 import CustomText from '../components/CustomText';
 
 export default function FormScreen({ navigation, user }) {
@@ -121,10 +121,13 @@ export default function FormScreen({ navigation, user }) {
           alamat: alamat,
           items: checklistItems,
           photo_url: photoUrl,
-          validation_status: hasIssue ? 'RED' : 'GREEN'
+          validation_status: hasIssue ? 'RED' : 'GREEN',
+          is_synced: true
         }]);
 
       if (error) throw error;
+
+      await removeOfflineInspectionByCustomer(idPelanggan, user.id);
 
       Alert.alert("Sukses", "Data berhasil dikirim!");
       navigation.goBack();
