@@ -9,7 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { getOfflineInspections, syncAllPending, getPendingCount } from '../lib/syncService';
 import CustomText from '../components/CustomText';
 
-export default function HomeScreen({ navigation }) {
+export default function HomeScreen({ navigation, user, onLogout }) {
   const [inspections, setInspections] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,34 +23,36 @@ export default function HomeScreen({ navigation }) {
     setLoading(true);
     try {
       const { data: onlineData } = await supabase
-        .from('inspections')
+        .from('uji_petik')
         .select('*')
+        .eq('id_pegawai', user.id)
         .order('created_at', { ascending: false });
 
       const offlineData = await getOfflineInspections();
+      const filteredOffline = offlineData.filter(i => i.id_pegawai === user.id);
 
-      const offlineIds = new Set(offlineData.map(i => i.id_pelanggan));
+      const offlineIds = new Set(filteredOffline.map(i => i.id_pelanggan));
       const uniqueOnline = (onlineData || []).filter(i => !offlineIds.has(i.id_pelanggan));
 
-      const combined = [...offlineData, ...uniqueOnline];
+      const combined = [...filteredOffline, ...uniqueOnline];
       setInspections(combined);
       setFilteredData(combined);
 
-      const count = await getPendingCount();
+      const count = filteredOffline.length;
       setPendingCount(count);
     } catch (err) {
       console.error("Fetch Error:", err);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user.id]);
 
   useEffect(() => {
     fetchInspections();
 
     const subscription = supabase
-      .channel('public:inspections')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'inspections' }, fetchInspections)
+      .channel('public:uji_petik')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'uji_petik' }, fetchInspections)
       .subscribe();
 
     const unsubscribe = navigation.addListener('focus', () => {
@@ -94,7 +96,7 @@ export default function HomeScreen({ navigation }) {
     if (results.failed === 0) {
       Alert.alert('Berhasil', `Semua ${results.success} data berhasil dikirim ke database!`);
     } else {
-      Alert.alert(' Sebagian Berhasil', `${results.success} data terkirim, ${results.failed} gagal.`);
+      Alert.alert('Sebagian Berhasil', `${results.success} data terkirim, ${results.failed} gagal.`);
     }
 
     fetchInspections();
@@ -110,10 +112,21 @@ export default function HomeScreen({ navigation }) {
     setFilteredData(filtered);
   };
 
+  const handleLogout = () => {
+    Alert.alert(
+      'Konfirmasi Logout',
+      'Apakah Anda yakin ingin keluar?',
+      [
+        { text: 'Batal', style: 'cancel' },
+        { text: 'Logout', style: 'destructive', onPress: onLogout }
+      ]
+    );
+  };
+
   const renderCard = ({ item }) => (
     <TouchableOpacity
       style={[styles.card, !item.is_synced && styles.offlineCard]}
-      onPress={() => navigation.navigate('Details', { item: item })}
+      onPress={() => navigation.navigate('Details', { item: item, user: user })}
     >
       <Image
         source={item.photo_url ? { uri: item.photo_url } : require('../img/placeholder.png')}
@@ -164,7 +177,20 @@ export default function HomeScreen({ navigation }) {
           <View style={styles.headerTopRow}>
             <View>
               <CustomText weight="bold" style={styles.headerTitle}>Uji Petik</CustomText>
-              <CustomText weight="regular" style={styles.headerSubtitle}>Aplikasi Digitalisasi Pengumpulan Data</CustomText>
+              <CustomText weight="regular" style={styles.headerSubtitle}>Selamat datang, {user.nama_pegawai}</CustomText>
+            </View>
+            <View style={styles.headerRight}>
+              {pendingCount > 0 && (
+                <TouchableOpacity style={styles.badgeBtn} onPress={handleSyncAll}>
+                  <Ionicons name="sync" size={24} color="white" />
+                  <View style={styles.badge}>
+                    <CustomText weight="bold" style={styles.badgeText}>{pendingCount}</CustomText>
+                  </View>
+                </TouchableOpacity>
+              )}
+              <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={24} color="white" />
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -192,7 +218,7 @@ export default function HomeScreen({ navigation }) {
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Ionicons name="document-text-outline" size={60} color="#CCC" />
-              <CustomText style={styles.emptyText}>Belum ada data inspection</CustomText>
+              <CustomText style={styles.emptyText}>Belum ada data uji petik</CustomText>
             </View>
           }
           refreshControl={
@@ -235,9 +261,11 @@ const styles = StyleSheet.create({
   headerTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   headerTitle: { fontSize: 32, color: 'white' },
   headerSubtitle: { fontSize: 14, color: 'white', marginTop: 5 },
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   badgeBtn: { position: 'relative', padding: 5 },
   badge: { position: 'absolute', top: -5, right: -5, backgroundColor: '#E74C3C', borderRadius: 10, minWidth: 20, height: 20, justifyContent: 'center', alignItems: 'center' },
   badgeText: { color: 'white', fontSize: 12 },
+  logoutBtn: { padding: 5 },
   searchSection: {
     flexDirection: 'row', alignItems: 'center', backgroundColor: 'white',
     marginHorizontal: 20, marginTop: -25, borderRadius: 25, paddingHorizontal: 15,

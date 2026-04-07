@@ -1,34 +1,16 @@
-// import { StatusBar } from 'expo-status-bar';
-// import { StyleSheet, Text, View } from 'react-native';
-
-// export default function App() {
-//   return (
-//     <View style={styles.container}>
-//       <Text>Open up App.js to start working on your app!</Text>
-//       <Text>Hello World</Text>
-//       <StatusBar style="auto" />
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//     backgroundColor: '#fff',
-//     alignItems: 'center',
-//     justifyContent: 'center',
-//   },
-// });
-
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { StatusBar } from 'expo-status-bar';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { useFonts } from 'expo-font';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import HomeScreen from './screens/HomeScreen';
 import FormScreen from './screens/FormScreen';
 import DetailsScreen from './screens/DetailsScreen';
+import LoginScreen from './screens/LoginScreen';
 
 const Stack = createStackNavigator();
+const USER_SESSION_KEY = 'user_session';
 
 export default function App() {
   const [fontsLoaded] = useFonts({
@@ -37,17 +19,61 @@ export default function App() {
     'SpotifyMix-Regular': require('./assets/font/SpotifyMix-Regular.ttf'),
   });
 
-  if (!fontsLoaded) {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkUserSession();
+  }, []);
+
+  const checkUserSession = async () => {
+    try {
+      const sessionData = await AsyncStorage.getItem(USER_SESSION_KEY);
+      if (sessionData) {
+        setUser(JSON.parse(sessionData));
+      }
+    } catch (e) {
+      console.error('Error checking session:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogin = (userData) => {
+    setUser(userData);
+  };
+
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem(USER_SESSION_KEY);
+    setUser(null);
+  };
+
+  if (!fontsLoaded || loading) {
     return null;
   }
 
   return (
-    <NavigationContainer>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Home" component={HomeScreen} />
-        <Stack.Screen name="Form" component={FormScreen} />
-        <Stack.Screen name="Details" component={DetailsScreen} />
-      </Stack.Navigator>
-    </NavigationContainer>
+    <>
+      <StatusBar style="light" />
+      <NavigationContainer>
+        <Stack.Navigator screenOptions={{ headerShown: false }}>
+          {!user ? (
+            <Stack.Screen name="Login">
+              {props => <LoginScreen {...props} onLogin={handleLogin} />}
+            </Stack.Screen>
+          ) : (
+            <>
+              <Stack.Screen name="Home">
+                {props => <HomeScreen {...props} user={user} onLogout={handleLogout} />}
+              </Stack.Screen>
+              <Stack.Screen name="Form">
+                {props => <FormScreen {...props} user={user} />}
+              </Stack.Screen>
+              <Stack.Screen name="Details" component={DetailsScreen} />
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </>
   );
 }

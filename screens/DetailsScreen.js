@@ -6,14 +6,16 @@ import {
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Ionicons } from '@expo/vector-icons';
-import { syncInspection, getOfflineInspections, removeOfflineInspection } from '../lib/syncService';
+import { syncInspection } from '../lib/syncService';
+import { supabase } from '../lib/supabase';
 import CustomText from '../components/CustomText';
 
 export default function DetailsScreen({ route, navigation }) {
-  const { item } = route.params;
+  const { item, user } = route.params;
   const [data, setData] = useState(item);
   const [isSynced, setIsSynced] = useState(item.is_synced || false);
   const [updating, setUpdating] = useState(false);
+  const [pegawaiName, setPegawaiName] = useState(user?.nama_pegawai || 'Petugas');
 
   useEffect(() => {
     setIsSynced(item.is_synced || false);
@@ -59,9 +61,9 @@ export default function DetailsScreen({ route, navigation }) {
           <table style="width: 100%; margin-bottom: 10px; font-size: 10px;">
             <tr>
               <td style="width: 50%; vertical-align: top;">
-                <b>Data Pegawai</b><br/>
-                ID: ${data.id_pegawai}<br/>
-                Nama: ${data.nama_pegawai}
+                <b>Data Petugas</b><br/>
+                Nama: ${pegawaiName}<br/>
+                ID: ${user?.id_pegawai || '-'}
               </td>
               <td style="width: 50%; vertical-align: top;">
                 <b>Data Pelanggan</b><br/>
@@ -144,9 +146,9 @@ export default function DetailsScreen({ route, navigation }) {
       </View>
 
       <View style={styles.employeeBox}>
-        <CustomText style={styles.employeeLabel}>Pegawai:</CustomText>
-        <CustomText weight="bold" style={styles.employeeName}>{data.nama_pegawai}</CustomText>
-        <CustomText style={styles.employeeId}>ID: {data.id_pegawai}</CustomText>
+        <CustomText style={styles.employeeLabel}>Petugas:</CustomText>
+        <CustomText weight="bold" style={styles.employeeName}>{pegawaiName}</CustomText>
+        <CustomText style={styles.employeeId}>ID: {user?.id_pegawai || '-'}</CustomText>
       </View>
 
       <View style={styles.section}>

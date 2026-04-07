@@ -4,15 +4,14 @@ import {
   TouchableOpacity, Alert, ActivityIndicator, Image
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { MATERIALS_LIST } from '../constants/materials';
 import { saveOfflineInspection } from '../lib/syncService';
 import CustomText from '../components/CustomText';
 
-export default function FormScreen({ navigation }) {
+export default function FormScreen({ navigation, user }) {
   const [loading, setLoading] = useState(false);
-  const [namaPegawai, setNamaPegawai] = useState('');
-  const [idPegawai, setIdPegawai] = useState('');
   const [namaPelanggan, setNamaPelanggan] = useState('');
   const [idPelanggan, setIdPelanggan] = useState('');
   const [nik, setNik] = useState('');
@@ -71,8 +70,8 @@ export default function FormScreen({ navigation }) {
   };
 
   const handleSubmit = async () => {
-    if (!namaPegawai || !idPegawai || !namaPelanggan || !nik || !idPelanggan || !alamat) {
-      Alert.alert("Error", "Mohon lengkapi semua data pegawai dan pelanggan.");
+    if (!namaPelanggan || !nik || !idPelanggan || !alamat) {
+      Alert.alert("Error", "Mohon lengkapi semua data pelanggan.");
       return;
     }
 
@@ -98,8 +97,7 @@ export default function FormScreen({ navigation }) {
 
     const inspectionData = {
       id: Date.now(),
-      id_pegawai: idPegawai,
-      nama_pegawai: namaPegawai,
+      id_pegawai: user.id,
       id_pelanggan: idPelanggan,
       nama_pelanggan: namaPelanggan,
       nik: nik,
@@ -114,8 +112,17 @@ export default function FormScreen({ navigation }) {
     try {
       const photoUrl = await uploadImage(imageBase64.split(',')[1]);
       const { error } = await supabase
-        .from('inspections')
-        .insert([{ ...inspectionData, photo_url: photoUrl, is_synced: true }]);
+        .from('uji_petik')
+        .insert([{ 
+          id_pegawai: user.id,
+          id_pelanggan: idPelanggan,
+          nama_pelanggan: namaPelanggan,
+          nik: nik,
+          alamat: alamat,
+          items: checklistItems,
+          photo_url: photoUrl,
+          validation_status: hasIssue ? 'RED' : 'GREEN'
+        }]);
 
       if (error) throw error;
 
@@ -141,9 +148,15 @@ export default function FormScreen({ navigation }) {
       <CustomText weight="bold" style={styles.header}>Input Data Uji Petik</CustomText>
 
       <View style={styles.section}>
-        <CustomText weight="bold" style={styles.sectionTitle}>Data Pegawai</CustomText>
-        <TextInput style={styles.input} placeholder="Nama Pegawai" value={namaPegawai} onChangeText={setNamaPegawai} />
-        <TextInput style={styles.input} placeholder="ID Pegawai" keyboardType="numeric" value={idPegawai} onChangeText={setIdPegawai} />
+        <CustomText weight="bold" style={styles.sectionTitle}>Data Petugas</CustomText>
+        <View style={styles.infoRow}>
+          <Ionicons name="person" size={18} color="#00C8DC" />
+          <CustomText style={styles.infoText}>{user.nama_pegawai}</CustomText>
+        </View>
+        <View style={styles.infoRow}>
+          <Ionicons name="card" size={18} color="#00C8DC" />
+          <CustomText style={styles.infoText}>ID: {user.id_pegawai}</CustomText>
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -187,6 +200,7 @@ export default function FormScreen({ navigation }) {
       <View style={styles.section}>
         <CustomText weight="bold" style={styles.sectionTitle}>Dokumentasi Foto</CustomText>
         <TouchableOpacity style={styles.cameraBtn} onPress={pickImage}>
+          <Ionicons name="camera" size={24} color="#333" />
           <CustomText weight="bold" style={styles.cameraBtnText}>{image ? "Ganti Foto" : "Ambil Foto Rumah"}</CustomText>
         </TouchableOpacity>
         {image && <Image source={{ uri: image.uri }} style={styles.previewImage} />}
@@ -208,6 +222,8 @@ const styles = StyleSheet.create({
   header: { fontSize: 22, marginVertical: 20, textAlign: 'center' },
   section: { backgroundColor: 'white', padding: 15, borderRadius: 10, marginBottom: 20, elevation: 2 },
   sectionTitle: { fontSize: 16, marginBottom: 15, color: '#333' },
+  infoRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, gap: 10 },
+  infoText: { fontSize: 15, color: '#333' },
   input: { borderBottomWidth: 1, borderColor: '#ddd', marginBottom: 15, padding: 8, fontSize: 15 },
   itemRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#eee' },
   itemName: { fontSize: 14, color: '#444', marginBottom: 8 },
@@ -218,7 +234,7 @@ const styles = StyleSheet.create({
   whiteText: { color: 'white' },
   blackText: { color: '#333' },
   noteInput: { backgroundColor: '#fff8f8', marginTop: 10, padding: 8, borderRadius: 5, borderWidth: 1, borderColor: '#FFC1C1' },
-  cameraBtn: { backgroundColor: '#eee', padding: 12, borderRadius: 8, alignItems: 'center', marginBottom: 10 },
+  cameraBtn: { backgroundColor: '#eee', padding: 15, borderRadius: 8, alignItems: 'center', marginBottom: 10, flexDirection: 'row', justifyContent: 'center', gap: 10 },
   cameraBtnText: { color: '#333' },
   previewImage: { width: '100%', height: 200, borderRadius: 8, marginTop: 10 },
   submitBtn: { backgroundColor: '#00C8DC', padding: 15, borderRadius: 10, alignItems: 'center', marginTop: 10 },
