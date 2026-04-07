@@ -190,14 +190,6 @@ export default function HomeScreen({ navigation, user, onLogout }) {
               <CustomText weight="regular" style={styles.headerSubtitle}>Selamat datang, {user.nama_pegawai}</CustomText>
             </View>
             <View style={styles.headerRight}>
-              {pendingCount > 0 && (
-                <TouchableOpacity style={styles.badgeBtn} onPress={handleSyncAll}>
-                  <Ionicons name="sync" size={24} color="white" />
-                  <View style={styles.badge}>
-                    <CustomText weight="bold" style={styles.badgeText}>{pendingCount}</CustomText>
-                  </View>
-                </TouchableOpacity>
-              )}
               <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
                 <Ionicons name="log-out-outline" size={24} color="white" />
               </TouchableOpacity>

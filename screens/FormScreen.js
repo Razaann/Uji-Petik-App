@@ -75,6 +75,16 @@ export default function FormScreen({ navigation, user }) {
       return;
     }
 
+    if (nik.length !== 16) {
+      Alert.alert("Error", "NIK harus 16 digit.");
+      return;
+    }
+
+    if (idPelanggan.length !== 12) {
+      Alert.alert("Error", "ID Pelanggan harus 12 digit.");
+      return;
+    }
+
     if (!image) {
       Alert.alert("Foto Dibutuhkan", "Anda wajib mengambil foto dokumentasi sebelum mengirim laporan.");
       return;
@@ -165,8 +175,8 @@ export default function FormScreen({ navigation, user }) {
       <View style={styles.section}>
         <CustomText weight="bold" style={styles.sectionTitle}>Data Pelanggan</CustomText>
         <TextInput style={styles.input} placeholder="Nama Pelanggan" value={namaPelanggan} onChangeText={setNamaPelanggan} />
-        <TextInput style={styles.input} placeholder="ID Pelanggan (12 Digit)" keyboardType="numeric" value={idPelanggan} onChangeText={setIdPelanggan} />
-        <TextInput style={styles.input} placeholder="NIK (16 Digit)" keyboardType="numeric" value={nik} onChangeText={setNik} />
+        <TextInput style={styles.input} placeholder="ID Pelanggan (12 Digit)" keyboardType="numeric" maxLength={12} value={idPelanggan} onChangeText={setIdPelanggan} />
+        <TextInput style={styles.input} placeholder="NIK (16 Digit)" keyboardType="numeric" maxLength={16} value={nik} onChangeText={setNik} />
         <TextInput style={[styles.input, { height: 60 }]} placeholder="Alamat Lengkap" multiline value={alamat} onChangeText={setAlamat} />
       </View>
 
