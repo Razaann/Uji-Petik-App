@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
-import * as FileSystem from 'expo-file-system';
+import { copyAsync, documentDirectory } from 'expo-file-system/legacy';
 import { Ionicons } from '@expo/vector-icons';
 import { syncInspection } from '../lib/syncService';
 import { supabase } from '../lib/supabase';
@@ -40,15 +40,70 @@ export default function DetailsScreen({ route, navigation }) {
 
   const performSync = async () => {
     setUpdating(true);
-    const result = await syncInspection(data);
+    try {
+      // Jika data dari online (sudah punya UUID), langsung sync
+      // Jika dari offline (pakai id_pelanggan TEXT), perlu proses khusus
+      if (item.id_pegawai && typeof item.id_pegawai === 'string' && item.id_pegawai.length > 36) {
+        // id_pegawai adalah UUID, data dari database
+        const result = await syncInspection(data);
+        if (result.success) {
+          setIsSynced(true);
+          Alert.alert("Berhasil", "Data sekarang sudah tersimpan di database!", [
+            { text: 'OK', onPress: () => navigation.goBack() }
+          ]);
+        } else {
+          Alert.alert("Gagal Sync", "Pastikan internet stabil dan coba lagi.\n\nError: " + (result.error?.message || 'Unknown error'));
+        }
+      } else {
+        // Data dari offline, perlu insert pelanggan dulu
+        const { data: existingPelanggan } = await supabase
+          .from('pelanggan')
+          .select('*')
+          .eq('id_pelanggan', data.id_pelanggan)
+          .single();
 
-    if (result.success) {
-      setIsSynced(true);
-      Alert.alert("Berhasil", "Data sekarang sudah tersimpan di database!", [
-        { text: 'OK', onPress: () => navigation.goBack() }
-      ]);
-    } else {
-      Alert.alert("Gagal Sync", "Pastikan internet stabil dan coba lagi.\n\nError: " + (result.error?.message || 'Unknown error'));
+        let pelangganId;
+
+        if (existingPelanggan) {
+          pelangganId = existingPelanggan.id;
+        } else {
+          const { data: newPelanggan, error: pelangganError } = await supabase
+            .from('pelanggan')
+            .insert([{
+              id_pelanggan: data.id_pelanggan,
+              nama_pelanggan: data.nama_pelanggan,
+              nik: data.nik,
+              alamat: data.alamat
+            }])
+            .select('id')
+            .single();
+
+          if (pelangganError) throw pelangganError;
+          pelangganId = newPelanggan.id;
+        }
+
+        // Insert uji_petik
+        const { error: ujiPetikError } = await supabase
+          .from('uji_petik')
+          .insert([{
+            id_pegawai: data.id_pegawai,
+            id_pelanggan: pelangganId,
+            items: data.items,
+            photo_url: data.photo_url,
+            validation_status: data.validation_status,
+            is_synced: true
+          }]);
+
+        if (ujiPetikError) throw ujiPetikError;
+
+        setIsSynced(true);
+        Alert.alert("Berhasil", "Data sekarang sudah tersimpan di database!", [
+          { text: 'OK', onPress: () => navigation.goBack() }
+        ]);
+      }
+    } catch (err) {
+      console.error('Sync error:', err);
+      Alert.alert("Gagal Sync", "Pastikan internet stabil dan coba lagi.\n\nError: " + (err.message || 'Unknown error'));
     }
     setUpdating(false);
   };
@@ -115,8 +170,8 @@ export default function DetailsScreen({ route, navigation }) {
     try {
       const { uri } = await Print.printToFileAsync({ html });
 
-      const newUri = FileSystem.documentDirectory + pdfFileName;
-      await FileSystem.copyAsync({ from: uri, to: newUri });
+      const newUri = documentDirectory + pdfFileName;
+      await copyAsync({ from: uri, to: newUri });
 
       if (action === 'download') {
         await Sharing.shareAsync(newUri, {

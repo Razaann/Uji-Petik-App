@@ -7,7 +7,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../lib/supabase';
 import { MATERIALS_LIST } from '../constants/materials';
-import { saveOfflineInspection, removeOfflineInspectionByCustomer } from '../lib/syncService';
+import { saveOfflineInspection, removeOfflineInspectionByCustomer, findOrCreatePelanggan } from '../lib/syncService';
 import CustomText from '../components/CustomText';
 
 export default function FormScreen({ navigation, user }) {
@@ -107,7 +107,7 @@ export default function FormScreen({ navigation, user }) {
 
     const inspectionData = {
       id: Date.now(),
-      id_pegawai: user.id,
+      id_pegawai: user.id_pegawai,
       id_pelanggan: idPelanggan,
       nama_pelanggan: namaPelanggan,
       nik: nik,
@@ -120,36 +120,72 @@ export default function FormScreen({ navigation, user }) {
     };
 
     try {
+      // 1. Upload foto dulu
       const photoUrl = await uploadImage(imageBase64.split(',')[1]);
-      const { error } = await supabase
+
+      // 2. Cek atau insert pelanggan ke tabel pelanggan
+      const { data: pelanggan, error: pelangganError } = await supabase
+        .from('pelanggan')
+        .select('*')
+        .eq('id_pelanggan', idPelanggan)
+        .single();
+
+      if (pelanggan) {
+        // Pelanggan sudah ada, update jika ada perubahan
+        if (pelanggan.nama_pelanggan !== namaPelanggan || 
+            pelanggan.nik !== nik || 
+            pelanggan.alamat !== alamat) {
+          await supabase
+            .from('pelanggan')
+            .update({
+              nama_pelanggan: namaPelanggan,
+              nik: nik,
+              alamat: alamat
+            })
+            .eq('id_pelanggan', idPelanggan);
+        }
+      } else {
+        // Insert pelanggan baru
+        const { error: newPelangganError } = await supabase
+          .from('pelanggan')
+          .insert([{
+            id_pelanggan: idPelanggan,
+            nama_pelanggan: namaPelanggan,
+            nik: nik,
+            alamat: alamat
+          }]);
+
+        if (newPelangganError) throw newPelangganError;
+      }
+
+      // 3. Insert uji_petik dengan foreign key TEXT
+      const { error: ujiPetikError } = await supabase
         .from('uji_petik')
         .insert([{ 
-          id_pegawai: user.id,
+          id_pegawai: user.id_pegawai,
           id_pelanggan: idPelanggan,
-          nama_pelanggan: namaPelanggan,
-          nik: nik,
-          alamat: alamat,
           items: checklistItems,
           photo_url: photoUrl,
           validation_status: hasIssue ? 'RED' : 'GREEN',
           is_synced: true
         }]);
 
-      if (error) throw error;
+      if (ujiPetikError) throw ujiPetikError;
 
-      await removeOfflineInspectionByCustomer(idPelanggan, user.id);
+      await removeOfflineInspectionByCustomer(idPelanggan, user.id_pegawai);
 
       Alert.alert("Sukses", "Data berhasil dikirim!");
       navigation.goBack();
 
     } catch (err) {
+      console.error('Submit error:', err);
       const saved = await saveOfflineInspection(inspectionData);
       if (saved) {
         Alert.alert("Mode Offline", "Koneksi gagal. Data tersimpan di HP!\nAkan otomatis terkirim saat koneksi tersedia.", [
           { text: 'OK', onPress: () => navigation.goBack() }
         ]);
       } else {
-        Alert.alert("Error", "Gagal simpan data.");
+        Alert.alert("Error", "Gagal simpan data: " + err.message);
       }
     } finally {
       setLoading(false);

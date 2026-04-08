@@ -22,17 +22,41 @@ export default function HomeScreen({ navigation, user, onLogout }) {
   const fetchInspections = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: onlineData } = await supabase
+      // Fetch data uji_petik dengan JOIN ke tabel pelanggan
+      const { data: onlineData, error } = await supabase
         .from('uji_petik')
-        .select('*')
-        .eq('id_pegawai', user.id)
+        .select(`
+          *,
+          pelanggan:pelanggan(id_pelanggan, nama_pelanggan, nik, alamat)
+        `)
+        .eq('id_pegawai', user.id_pegawai)
         .order('created_at', { ascending: false });
 
+      if (error) {
+        console.error("Fetch error:", error);
+        throw error;
+      }
+
+      // Map data dari JOIN ke format yang dipakai app
+      const mappedData = (onlineData || []).map(item => ({
+        id: item.id,
+        id_pegawai: item.id_pegawai,
+        id_pelanggan: item.pelanggan?.id_pelanggan || '',
+        nama_pelanggan: item.pelanggan?.nama_pelanggan || '',
+        nik: item.pelanggan?.nik || '',
+        alamat: item.pelanggan?.alamat || '',
+        items: item.items,
+        photo_url: item.photo_url,
+        validation_status: item.validation_status,
+        is_synced: item.is_synced,
+        created_at: item.created_at
+      }));
+
       const offlineData = await getOfflineInspections();
-      const filteredOffline = offlineData.filter(i => i.id_pegawai === user.id);
+      const filteredOffline = offlineData.filter(i => i.id_pegawai === user.id_pegawai);
 
       const offlineIds = new Set(filteredOffline.map(i => i.id));
-      const uniqueOnline = (onlineData || [])
+      const uniqueOnline = mappedData
         .filter(i => !offlineIds.has(i.id))
         .map(i => ({ ...i, is_synced: true }));
 
@@ -47,7 +71,7 @@ export default function HomeScreen({ navigation, user, onLogout }) {
     } finally {
       setLoading(false);
     }
-  }, [user.id]);
+  }, [user.id_pegawai]);
 
   useEffect(() => {
     fetchInspections();
@@ -88,7 +112,7 @@ export default function HomeScreen({ navigation, user, onLogout }) {
     setShowSyncModal(true);
     setSyncProgress({ current: 0, total: pendingCount });
 
-    const results = await syncAllPending(user.id, ({ current, total, success, failed, skipped }) => {
+    const results = await syncAllPending(user.id_pegawai, ({ current, total, success, failed, skipped }) => {
       setSyncProgress({ current, total });
     });
 
