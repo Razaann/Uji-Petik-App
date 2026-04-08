@@ -12,6 +12,38 @@ CREATE TABLE IF NOT EXISTS pegawai (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- =====================================================
+-- FUNGSI OTOMATIS HASH PASSWORD (SHA-256)
+-- =====================================================
+-- Function ini akan otomatis hash password saat insert
+-- Cukup ketik password biasa, tidak perlu hash manual!
+
+CREATE OR REPLACE FUNCTION hash_password(plain_text TEXT)
+RETURNS TEXT AS $$
+BEGIN
+  RETURN encode(sha256(plain_text::bytea), 'hex');
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- 2. Buat trigger untuk auto-hash saat insert/update
+CREATE OR REPLACE FUNCTION auto_hash_password()
+RETURNS TRIGGER AS $$
+BEGIN
+  -- Hash password baru jika belum di-hash (64 char = SHA-256 hash)
+  IF length(NEW.password_hash) != 64 OR 
+     NEW.password_hash !~ '^[a-f0-9]{64}$' THEN
+    NEW.password_hash := encode(sha256(NEW.password_hash::bytea), 'hex');
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_auto_hash_password ON pegawai;
+CREATE TRIGGER trigger_auto_hash_password
+  BEFORE INSERT OR UPDATE ON pegawai
+  FOR EACH ROW
+  EXECUTE FUNCTION auto_hash_password();
+
 -- 2. Buat tabel UJI_PETIK
 CREATE TABLE IF NOT EXISTS uji_petik (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -47,7 +79,9 @@ CREATE INDEX IF NOT EXISTS idx_uji_petik_created_at ON uji_petik(created_at DESC
 
 -- =====================================================
 -- INSERT DATA PETUGAS (DARI CSV)
--- Default password: 'pln2024' (bisa dihash dengan bcrypt)
+-- Default password: 'pln2024'
+-- Password akan di-hash OTOMATIS oleh trigger!
+-- Cukup ketik password biasa, tidak perlu hash manual!
 -- =====================================================
 
 INSERT INTO pegawai (id_pegawai, nama_pegawai, password_hash) VALUES
@@ -56,3 +90,13 @@ INSERT INTO pegawai (id_pegawai, nama_pegawai, password_hash) VALUES
 ('101003', 'Muhammad Iqbal', 'pln2024'),
 ('101004', 'Susi Susanti', 'pln2024'),
 ('101005', 'Andi Pratama', 'pln2024');
+
+-- =====================================================
+-- MENAMBAH PETUGAS BARU (CARA MUDAH!)
+-- Cukup jalankan SQL ini dengan password biasa:
+-- 
+-- INSERT INTO pegawai (id_pegawai, nama_pegawai, password_hash)
+-- VALUES ('101006', 'Nama Baru', 'password_baru');
+--
+-- Password akan di-hash OTOMATIS!
+-- =====================================================

@@ -5,10 +5,19 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as crypto from 'expo-crypto';
 import { supabase } from '../lib/supabase';
 import CustomText from '../components/CustomText';
 
 const USER_SESSION_KEY = 'user_session';
+
+const hashPassword = async (password) => {
+  const hash = await crypto.digestStringAsync(
+    crypto.CryptoDigestAlgorithm.SHA256,
+    password
+  );
+  return hash;
+};
 
 export default function LoginScreen({ navigation, onLogin }) {
   const [idPegawai, setIdPegawai] = useState('');
@@ -37,7 +46,9 @@ export default function LoginScreen({ navigation, onLogin }) {
         return;
       }
 
-      if (data.password_hash !== password.trim()) {
+      const inputHash = await hashPassword(password.trim());
+
+      if (inputHash.toLowerCase() !== data.password_hash.toLowerCase()) {
         Alert.alert('Login Gagal', 'Password yang Anda masukkan salah.');
         setLoading(false);
         return;

@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system';
 import { Ionicons } from '@expo/vector-icons';
 import { syncInspection } from '../lib/syncService';
 import { supabase } from '../lib/supabase';
@@ -52,7 +53,9 @@ export default function DetailsScreen({ route, navigation }) {
     setUpdating(false);
   };
 
-  const createPDF = async () => {
+  const createPDF = async (action) => {
+    const pdfFileName = `Uji_Petik_${data.id_pelanggan}.pdf`;
+
     const html = `
       <html>
         <body style="padding: 20px; font-family: sans-serif; font-size: 11px;">
@@ -111,10 +114,37 @@ export default function DetailsScreen({ route, navigation }) {
 
     try {
       const { uri } = await Print.printToFileAsync({ html });
-      await Sharing.shareAsync(uri);
+
+      const newUri = FileSystem.documentDirectory + pdfFileName;
+      await FileSystem.copyAsync({ from: uri, to: newUri });
+
+      if (action === 'download') {
+        await Sharing.shareAsync(newUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: `Download ${pdfFileName}`,
+          UTI: 'com.adobe.pdf'
+        });
+      } else {
+        await Sharing.shareAsync(newUri, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Bagikan PDF Laporan Uji Petik'
+        });
+      }
     } catch (e) {
-      Alert.alert('Error', 'Gagal membuat PDF');
+      Alert.alert('Error', 'Gagal membuat PDF: ' + e.message);
     }
+  };
+
+  const handlePDFOption = () => {
+    Alert.alert(
+      'Ekspor PDF',
+      'Pilih metode ekspor:',
+      [
+        { text: 'Simpan ke Device', onPress: () => createPDF('download') },
+        { text: 'Bagikan', onPress: () => createPDF('share') },
+        { text: 'Batal', style: 'cancel' }
+      ]
+    );
   };
 
   const imageSource = data.photo_url?.startsWith('data:')
@@ -169,9 +199,9 @@ export default function DetailsScreen({ route, navigation }) {
       </View>
 
       <View style={styles.buttonContainer}>
-        <TouchableOpacity style={styles.pdfBtn} onPress={createPDF}>
+        <TouchableOpacity style={styles.pdfBtn} onPress={handlePDFOption}>
           <Ionicons name="document-text" size={20} color="white" />
-          <CustomText weight="bold" style={styles.btnText}>Cetak PDF</CustomText>
+          <CustomText weight="bold" style={styles.btnText}>Ekspor PDF</CustomText>
         </TouchableOpacity>
 
         <TouchableOpacity
